@@ -1,12 +1,17 @@
 from django.contrib import admin
-from .models import Scena, DialogLine, Scelta
+# 1. IMPORTIAMO TUTTI I MODELLI (Compreso Oggetto!)
+from .models import Scena, DialogLine, Scelta, Oggetto 
 
-# Questo permette di scrivere le battute DENTRO la pagina della Scena
+# 2. REGISTRAZIONE SEMPLICE
+# Questo crea il pannello per creare/modificare gli oggetti (Chiavi, Spade, ecc.)
+admin.site.register(Oggetto)
+
+# --- CONFIGURAZIONI AVANZATE PER LE SCENE (Già le avevi) ---
+
 class DialogLineInline(admin.TabularInline):
     model = DialogLine
-    extra = 1 # Quante righe vuote mostrare di default
+    extra = 1
 
-# Questo permette di aggiungere le Scelte DENTRO la pagina della Scena
 class SceltaInline(admin.TabularInline):
     model = Scelta
     fk_name = 'scena_partenza'
@@ -15,6 +20,5 @@ class SceltaInline(admin.TabularInline):
 @admin.register(Scena)
 class ScenaAdmin(admin.ModelAdmin):
     inlines = [DialogLineInline, SceltaInline]
-
-# Non serve registrare DialogLine e Scelta separatamente se usiamo gli inline,
-# ma a volte è comodo averli. Per ora registriamo solo la Scena "Master".
+    # Opzionale: mostra queste colonne nell'elenco delle scene
+    list_display = ['titolo', 'slug']

@@ -89,11 +89,34 @@
             text-decoration: none; transition: 0.2s; font-size: 1.3em; font-weight: bold;
         }
         .choice-btn:hover { background: #ff9dd6; color: #000; transform: scale(1.03); box-shadow: 0 0 15px #ff9dd6; }
+        /* INVENTARIO (HUD) */
+        .inventory-box {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(0,0,0,0.6); padding: 10px;
+            border-radius: 10px; border: 1px solid #555;
+            display: flex; gap: 10px; z-index: 100;
+        }
+        .inv-item { width: 50px; height: 50px; border: 1px solid #aaa; border-radius: 5px; overflow: hidden; background: #222; }
+        .inv-item img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body>
 
     <div class="background-layer" style="{% if scena.background %}background-image: url('{{ scena.background.url }}');{% endif %}"></div>
+
+    <div class="inventory-box">
+        {% for obj in inventario %}
+            <div class="inv-item" title="{{ obj.nome }}">
+                {% if obj.icona %}
+                    <img src="{{ obj.icona.url }}">
+                {% else %}
+                    <div style="color:white; font-size:10px; text-align:center;">{{ obj.nome }}</div>
+                {% endif %}
+            </div>
+        {% empty %}
+            <div style="color: #777; font-size: 0.8em;">Zaino vuoto</div>
+        {% endfor %}
+    </div>
 
     <div class="sprite-container">
         {% if battuta and battuta.character_sprite %}
@@ -111,15 +134,22 @@
                 <a href="?step={{ prossimo_step }}" class="next-btn">AVANTI ▶</a>
             </div>
 
-        {% elif mostra_scelte %}
+       {% elif mostra_scelte %}
             <div style="width: 100%;">
                 <div class="choice-container">
                     {% for s in scelte %}
+                        
                         {% if s.scena_arrivo %}
-                            <a href="/{{ s.scena_arrivo.slug }}/" class="choice-btn">{{ s.testo_bottone }}</a>
+                            <a href="{% url 'fai_scelta' s.id %}" class="choice-btn">
+                                {{ s.testo_bottone }}
+                            </a>
+
                         {% else %}
-                            <a href="." class="choice-btn" style="border-color: red; background: rgba(255,0,0,0.2);">[Destinazione Mancante]</a>
+                            <a href="." class="choice-btn" style="border-color: red; background: rgba(255,0,0,0.2);">
+                                [Destinazione Mancante] - {{ s.testo_bottone }}
+                            </a>
                         {% endif %}
+
                     {% endfor %}
                 </div>
             </div>
