@@ -1,0 +1,134 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ scena.titolo }}</title>
+    <style>
+        body { margin: 0; padding: 0; background: #111; color: white; font-family: 'Helvetica Neue', Arial, sans-serif; height: 100vh; overflow: hidden; position: relative; }
+        
+        /* 1. LIVELLO SFONDO (Z-INDEX: -2) */
+        .background-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center; 
+            z-index: -2; /* In fondo a tutto */
+            background-color: #222;
+            transition: background-image 0.5s ease-in-out; /* Opzionale: transizione morbida se cambia sfondo */
+        }
+
+        /* 2. LIVELLO SPRITE (Z-INDEX: 0) */
+        /* Contenitore invisibile che centra lo sprite */
+        .sprite-container {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            justify-content: center; /* Centra orizzontalmente */
+            align-items: flex-end; /* Allinea in basso */
+            padding-bottom: 140px; /* Spazio per non finire dietro la text box */
+            z-index: 0; /* Davanti allo sfondo, dietro al testo */
+            pointer-events: none; /* I click passano attraverso */
+        }
+
+        /* L'immagine vera e propria */
+        .sprite-img {
+            max-height: 80vh; /* Altezza massima: 80% dello schermo */
+            max-width: 90%; /* Larghezza massima: 90% dello schermo */
+            object-fit: contain; /* Non deformare l'immagine */
+            /* filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); Opzionale: ombra per staccare dallo sfondo */
+        }
+
+
+        /* 3. LIVELLO DIALOGO (Z-INDEX: 10) */
+        .dialogue-box {
+            position: absolute; bottom: 20px; left: 5%; right: 5%;
+            background: rgba(0, 0, 0, 0.85); /* Sfondo semitrasparente scuro */
+            border: 3px solid #fff;
+            border-radius: 10px; /* Angoli arrotondati */
+            padding: 25px; 
+            min-height: 130px; 
+            display: flex; flex-direction: column;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            z-index: 10; /* Davanti a tutto */
+            backdrop-filter: blur(5px); /* Effetto sfocatura figo (funziona su browser moderni) */
+        }
+
+        .text-content { flex-grow: 1; display: flex; flex-direction: column; }
+
+        /* Nome del personaggio */
+        .char-name { 
+            font-weight: 800; color: #ff9dd6; /* Un rosa stile Doki Doki */
+            margin-bottom: 10px; font-size: 1.5em; 
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+        
+        /* Testo del dialogo */
+        .char-text { 
+            font-size: 1.3em; line-height: 1.4; margin-bottom: 15px; 
+            font-weight: 500;
+        }
+
+        /* Bottone AVANTI */
+        .next-btn { 
+            align-self: flex-end; 
+            background: transparent; color: #ff9dd6; 
+            padding: 5px 20px; 
+            text-decoration: none; font-weight: bold; 
+            cursor: pointer; border: 2px solid #ff9dd6;
+            border-radius: 20px;
+            font-size: 1em;
+            transition: 0.3s;
+        }
+        .next-btn:hover { background: #ff9dd6; color: #000; }
+        
+        /* SEZIONE SCELTE */
+        .choice-container { text-align: center; width: 100%; margin-top: 10px; }
+        .choice-btn {
+            display: block; background: rgba(255, 157, 214, 0.2); color: #fff; 
+            border: 2px solid #ff9dd6; border-radius: 30px;
+            padding: 15px; margin: 10px auto; width: 90%; max-width: 700px;
+            text-decoration: none; transition: 0.2s; font-size: 1.3em; font-weight: bold;
+        }
+        .choice-btn:hover { background: #ff9dd6; color: #000; transform: scale(1.03); box-shadow: 0 0 15px #ff9dd6; }
+    </style>
+</head>
+<body>
+
+    <div class="background-layer" style="{% if scena.background %}background-image: url('{{ scena.background.url }}');{% endif %}"></div>
+
+    <div class="sprite-container">
+        {% if battuta and battuta.character_sprite %}
+            <img src="{{ battuta.character_sprite.url }}" class="sprite-img" alt="Personaggio">
+        {% endif %}
+    </div>
+
+
+    <div class="dialogue-box">
+        
+        {% if battuta %}
+            <div class="text-content">
+                <div class="char-name">{{ battuta.character_name }}</div>
+                <div class="char-text">{{ battuta.text }}</div>
+                <a href="?step={{ prossimo_step }}" class="next-btn">AVANTI ▶</a>
+            </div>
+
+        {% elif mostra_scelte %}
+            <div style="width: 100%;">
+                <div class="choice-container">
+                    {% for s in scelte %}
+                        {% if s.scena_arrivo %}
+                            <a href="/{{ s.scena_arrivo.slug }}/" class="choice-btn">{{ s.testo_bottone }}</a>
+                        {% else %}
+                            <a href="." class="choice-btn" style="border-color: red; background: rgba(255,0,0,0.2);">[Destinazione Mancante]</a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+        {% else %}
+            <p>...</p>
+        {% endif %}
+
+    </div>
+
+</body>
+</html>

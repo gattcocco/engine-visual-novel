@@ -1,0 +1,14 @@
+# Ignora la cartella dell'ambiente virtuale
+venv/
+env/
+
+# Ignora i file compilati di Python
+*.pyc
+__pycache__/
+
+# Ignora il database locale (generalmente si fa così)
+db.sqlite3
+
+# Ignora le cartelle media (le immagini caricate)
+# Se vuoi che il tuo amico veda le immagini che hai messo tu, metti un # davanti alla riga sotto per "commentarla" e caricarle.
+# media/
