@@ -1,32 +1,65 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Scena, Scelta, Oggetto
+from .models import Scena, Scelta, Oggetto, ActionNode
 
-# Questa vista gestisce il click sulla scelta (LOGICA)
 def fai_scelta(request, scelta_id):
     scelta = get_object_or_404(Scelta, id=scelta_id)
     
-    # 1. Inizializza l'inventario se non esiste
     if 'inventario' not in request.session:
         request.session['inventario'] = []
 
-    # 2. Se la scelta dà un oggetto, aggiungilo allo zaino
     if scelta.oggetto_ricevuto:
         id_oggetto = scelta.oggetto_ricevuto.id
         if id_oggetto not in request.session['inventario']:
             request.session['inventario'].append(id_oggetto)
-            request.session.modified = True # Importante! Dice a Django di salvare
+            request.session.modified = True
 
-    # 3. Vai alla scena successiva
     if scelta.scena_arrivo:
         return redirect('scena', slug_scena=scelta.scena_arrivo.slug)
     else:
-        return redirect('home') # Fallback se non c'è destinazione
+        return redirect('home')
 
-# Questa vista mostra la scena (VISUALIZZAZIONE)
+# --- NUOVE FUNZIONI ACTION NODE ---
+
+def avvia_action_node(request, action_node_id):
+    # L'utente ha cliccato su un bottone tipo "Usa un oggetto su questa porta"
+    action_node = get_object_or_404(ActionNode, id=action_node_id)
+    # Salviamo in sessione che siamo in "modalità scelta oggetto" per questo nodo
+    request.session['action_node_attivo_id'] = action_node.id
+    request.session.modified = True
+    return redirect('scena', slug_scena=action_node.scena_partenza.slug)
+
+def applica_oggetto_action_node(request, action_node_id, oggetto_id):
+    # L'utente ha cliccato un oggetto dell'inventario MENTRE era attivo un ActionNode
+    action_node = get_object_or_404(ActionNode, id=action_node_id)
+    inventario_ids = request.session.get('inventario', [])
+
+    # Sicurezza: l'utente possiede davvero l'oggetto?
+    if oggetto_id not in inventario_ids:
+        request.session['action_node_attivo_id'] = None
+        request.session.modified = True
+        return redirect('scena', slug_scena=action_node.scena_partenza.slug)
+
+    # CHECK: È l'oggetto giusto?
+    if action_node.oggetto_richiesto and action_node.oggetto_richiesto.id == oggetto_id:
+        # SUCCESSO!
+        request.session['action_node_attivo_id'] = None # Resetta stato
+        request.session.modified = True
+        if action_node.scena_successo:
+            return redirect('scena', slug_scena=action_node.scena_successo.slug)
+    
+    # FALLIMENTO (Oggetto sbagliato)
+    request.session['action_node_attivo_id'] = None # Resetta stato
+    request.session.modified = True
+    if action_node.scena_fallimento:
+        return redirect('scena', slug_scena=action_node.scena_fallimento.slug)
+    
+    # Se non c'è scena fallimento, ricarica semplicemente la scena corrente
+    return redirect('scena', slug_scena=action_node.scena_partenza.slug)
+
+
 def motore_gioco(request, slug_scena='inizio'):
     scena = get_object_or_404(Scena, slug=slug_scena)
     
-    # Recupera le battute
     battute = scena.dialogues.all().order_by('order')
     totale_battute = battute.count()
     
@@ -45,26 +78,31 @@ def motore_gioco(request, slug_scena='inizio'):
     else:
         mostra_scelte = True
 
-    # --- LOGICA FILTRO SCELTE ---
-    # Recuperiamo l'inventario attuale
     inventario_ids = request.session.get('inventario', [])
     
-    # Prendiamo tutte le scelte possibili
+    # Filtro Scelte Classiche
     tutte_scelte = scena.scelte.all()
     scelte_visibili = []
-
     for s in tutte_scelte:
-        # Se la scelta richiede un oggetto...
         if s.oggetto_richiesto:
-            # ...e l'utente CE L'HA -> Mostra
             if s.oggetto_richiesto.id in inventario_ids:
                 scelte_visibili.append(s)
-            # ...e l'utente NON CE L'HA -> Nascondi (non la aggiungo alla lista)
         else:
-            # Se non richiede nulla -> Mostra sempre
             scelte_visibili.append(s)
             
-    # Recuperiamo gli oggetti veri per disegnarli a schermo (HUD)
+    # Recupera Action Nodes
+    action_nodes = scena.action_nodes.all()
+
+    # Controlla se siamo in modalità "Selezione Oggetto"
+    action_node_attivo = None
+    action_node_attivo_id = request.session.get('action_node_attivo_id')
+    if action_node_attivo_id:
+        # Verifica che il nodo attivo appartenga davvero a questa scena (per sicurezza)
+        action_node_attivo = ActionNode.objects.filter(id=action_node_attivo_id, scena_partenza=scena).first()
+        # Se l'utente ha cambiato scena, resettiamo l'azione
+        if not action_node_attivo:
+             request.session['action_node_attivo_id'] = None
+
     oggetti_inventario = Oggetto.objects.filter(id__in=inventario_ids)
 
     return render(request, 'gameplay/schermata.html', {
@@ -72,6 +110,13 @@ def motore_gioco(request, slug_scena='inizio'):
         'battuta': battuta_attuale,
         'mostra_scelte': mostra_scelte,
         'prossimo_step': prossimo_step,
-        'scelte': scelte_visibili, # Passo solo quelle filtrate!
-        'inventario': oggetti_inventario # Passo lo zaino al template
+        'scelte': scelte_visibili,
+        'inventario': oggetti_inventario,
+        'action_nodes': action_nodes,         # Passiamo i nodi al template
+        'action_node_attivo': action_node_attivo, # Passiamo lo stato attivo
     })
+# ... (dopo le altre funzioni)
+
+def reset_gioco(request):
+    request.session.flush() # CANCELLA TUTTO: Inventario, variabili, tutto.
+    return redirect('home')

@@ -1,95 +1,19 @@
-{% load static %}
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <title>{{ scena.titolo }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Novel Engine</title>
     <style>
-        body { margin: 0; padding: 0; background: #111; color: white; font-family: 'Helvetica Neue', Arial, sans-serif; height: 100vh; overflow: hidden; position: relative; }
+        body { margin: 0; padding: 0; background: #000; color: #fff; font-family: 'Verdana', sans-serif; overflow: hidden; height: 100vh; }
         
-        /* 1. LIVELLO SFONDO (Z-INDEX: -2) */
         .background-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-size: cover; background-position: center; 
-            z-index: -2; /* In fondo a tutto */
-            background-color: #222;
-            transition: background-image 0.5s ease-in-out; /* Opzionale: transizione morbida se cambia sfondo */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center; z-index: -1;
+            filter: brightness(0.6);
         }
 
-        /* 2. LIVELLO SPRITE (Z-INDEX: 0) */
-        /* Contenitore invisibile che centra lo sprite */
-        .sprite-container {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            display: flex;
-            justify-content: center; /* Centra orizzontalmente */
-            align-items: flex-end; /* Allinea in basso */
-            padding-bottom: 140px; /* Spazio per non finire dietro la text box */
-            z-index: 0; /* Davanti allo sfondo, dietro al testo */
-            pointer-events: none; /* I click passano attraverso */
-        }
-
-        /* L'immagine vera e propria */
-        .sprite-img {
-            max-height: 80vh; /* Altezza massima: 80% dello schermo */
-            max-width: 90%; /* Larghezza massima: 90% dello schermo */
-            object-fit: contain; /* Non deformare l'immagine */
-            /* filter: drop-shadow(0 0 10px rgba(0,0,0,0.5)); Opzionale: ombra per staccare dallo sfondo */
-        }
-
-
-        /* 3. LIVELLO DIALOGO (Z-INDEX: 10) */
-        .dialogue-box {
-            position: absolute; bottom: 20px; left: 5%; right: 5%;
-            background: rgba(0, 0, 0, 0.85); /* Sfondo semitrasparente scuro */
-            border: 3px solid #fff;
-            border-radius: 10px; /* Angoli arrotondati */
-            padding: 25px; 
-            min-height: 130px; 
-            display: flex; flex-direction: column;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-            z-index: 10; /* Davanti a tutto */
-            backdrop-filter: blur(5px); /* Effetto sfocatura figo (funziona su browser moderni) */
-        }
-
-        .text-content { flex-grow: 1; display: flex; flex-direction: column; }
-
-        /* Nome del personaggio */
-        .char-name { 
-            font-weight: 800; color: #ff9dd6; /* Un rosa stile Doki Doki */
-            margin-bottom: 10px; font-size: 1.5em; 
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        }
-        
-        /* Testo del dialogo */
-        .char-text { 
-            font-size: 1.3em; line-height: 1.4; margin-bottom: 15px; 
-            font-weight: 500;
-        }
-
-        /* Bottone AVANTI */
-        .next-btn { 
-            align-self: flex-end; 
-            background: transparent; color: #ff9dd6; 
-            padding: 5px 20px; 
-            text-decoration: none; font-weight: bold; 
-            cursor: pointer; border: 2px solid #ff9dd6;
-            border-radius: 20px;
-            font-size: 1em;
-            transition: 0.3s;
-        }
-        .next-btn:hover { background: #ff9dd6; color: #000; }
-        
-        /* SEZIONE SCELTE */
-        .choice-container { text-align: center; width: 100%; margin-top: 10px; }
-        .choice-btn {
-            display: block; background: rgba(255, 157, 214, 0.2); color: #fff; 
-            border: 2px solid #ff9dd6; border-radius: 30px;
-            padding: 15px; margin: 10px auto; width: 90%; max-width: 700px;
-            text-decoration: none; transition: 0.2s; font-size: 1.3em; font-weight: bold;
-        }
-        .choice-btn:hover { background: #ff9dd6; color: #000; transform: scale(1.03); box-shadow: 0 0 15px #ff9dd6; }
-        /* INVENTARIO (HUD) */
+        /* INVENTARIO */
         .inventory-box {
             position: absolute; top: 20px; right: 20px;
             background: rgba(0,0,0,0.6); padding: 10px;
@@ -98,21 +22,97 @@
         }
         .inv-item { width: 50px; height: 50px; border: 1px solid #aaa; border-radius: 5px; overflow: hidden; background: #222; }
         .inv-item img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* Stile speciale quando devi scegliere un oggetto */
+        .item-selection-mode { border: 2px solid #ffe678; box-shadow: 0 0 12px rgba(255, 230, 120, 0.6); }
+        .inv-item-link { display: block; width: 50px; height: 50px; cursor: pointer; transition: 0.2s; }
+        .inv-item-link:hover { transform: scale(1.1); border-color: yellow; }
+
+        .sprite-container {
+            position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+            height: 80vh; pointer-events: none; z-index: 1;
+            display: flex; align-items: flex-end;
+        }
+        .sprite-img { max-height: 100%; width: auto; drop-shadow: 0 0 20px rgba(0,0,0,0.5); }
+
+        .dialogue-box {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 800px;
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #fff; border-radius: 15px;
+            padding: 20px; z-index: 10;
+            display: flex; flex-direction: column; min-height: 150px;
+        }
+        
+        .char-name { font-size: 1.2em; font-weight: bold; color: #ff9dd6; margin-bottom: 10px; text-transform: uppercase; }
+        .char-text { font-size: 1.1em; line-height: 1.5; margin-bottom: 20px; flex-grow: 1; }
+        .next-btn { 
+            align-self: flex-end; background: transparent; color: #ff9dd6; 
+            padding: 5px 20px; text-decoration: none; font-weight: bold; 
+            cursor: pointer; border: 2px solid #ff9dd6; border-radius: 20px;
+            transition: 0.3s;
+        }
+        .next-btn:hover { background: #ff9dd6; color: #000; }
+
+        /* TASTO RESET (In basso a destra) */
+.reset-btn {
+    position: fixed; bottom: 10px; right: 10px;
+    background: rgba(255, 0, 0, 0.3); color: #fff;
+    padding: 5px 10px; font-size: 0.8em; border-radius: 5px;
+    text-decoration: none; border: 1px solid red; z-index: 200;
+}
+.reset-btn:hover { background: red; }
+        
+        /* SCELTE E ACTION NODES */
+        .choice-container { text-align: center; width: 100%; margin-top: 10px; }
+        
+        .choice-btn {
+            display: block; background: rgba(255, 157, 214, 0.2); color: #fff; 
+            border: 2px solid #ff9dd6; border-radius: 30px;
+            padding: 15px; margin: 10px auto; width: 90%; max-width: 700px;
+            text-decoration: none; transition: 0.2s; font-size: 1.3em; font-weight: bold;
+        }
+        .choice-btn:hover { background: #ff9dd6; color: #000; transform: scale(1.03); }
+
+        /* Stile diverso per i bottoni "Azione" (gialli) */
+        .action-choice-btn { border-color: #ffe678; background: rgba(255, 230, 120, 0.2); color: #ffe678; }
+        .action-choice-btn:hover { background: #ffe678; color: #000; box-shadow: 0 0 15px #ffe678; }
+
+        .action-mode-banner {
+            margin: 0 auto 10px auto; max-width: 700px; text-align: center;
+            background: rgba(255, 230, 120, 0.2); border: 2px solid #ffe678;
+            color: #ffe678; border-radius: 12px; padding: 10px; font-weight: bold;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 0.8; } 50% { opacity: 1; } 100% { opacity: 0.8; } }
+
     </style>
 </head>
 <body>
 
     <div class="background-layer" style="{% if scena.background %}background-image: url('{{ scena.background.url }}');{% endif %}"></div>
 
-    <div class="inventory-box">
+    <div class="inventory-box {% if action_node_attivo %}item-selection-mode{% endif %}">
         {% for obj in inventario %}
-            <div class="inv-item" title="{{ obj.nome }}">
-                {% if obj.icona %}
-                    <img src="{{ obj.icona.url }}">
-                {% else %}
-                    <div style="color:white; font-size:10px; text-align:center;">{{ obj.nome }}</div>
-                {% endif %}
-            </div>
+            {% if action_node_attivo %}
+                <a class="inv-item-link" href="{% url 'applica_oggetto_action_node' action_node_attivo.id obj.id %}" title="Usa {{ obj.nome }}">
+                    <div class="inv-item">
+                        {% if obj.icona %}
+                            <img src="{{ obj.icona.url }}">
+                        {% else %}
+                            <div style="font-size:10px; text-align:center; padding-top:15px;">{{ obj.nome }}</div>
+                        {% endif %}
+                    </div>
+                </a>
+            {% else %}
+                <div class="inv-item" title="{{ obj.nome }}">
+                    {% if obj.icona %}
+                        <img src="{{ obj.icona.url }}">
+                    {% else %}
+                        <div style="color:white; font-size:10px; text-align:center; padding-top:15px;">{{ obj.nome }}</div>
+                    {% endif %}
+                </div>
+            {% endif %}
         {% empty %}
             <div style="color: #777; font-size: 0.8em;">Zaino vuoto</div>
         {% endfor %}
@@ -124,9 +124,7 @@
         {% endif %}
     </div>
 
-
     <div class="dialogue-box">
-        
         {% if battuta %}
             <div class="text-content">
                 <div class="char-name">{{ battuta.character_name }}</div>
@@ -137,28 +135,35 @@
        {% elif mostra_scelte %}
             <div style="width: 100%;">
                 <div class="choice-container">
+                    
+                    {% if action_node_attivo %}
+                        <div class="action-mode-banner">
+                            Seleziona un oggetto dallo zaino per: {{ action_node_attivo.testo_bottone }}
+                        </div>
+                    {% endif %}
+
                     {% for s in scelte %}
-                        
                         {% if s.scena_arrivo %}
-                            <a href="{% url 'fai_scelta' s.id %}" class="choice-btn">
-                                {{ s.testo_bottone }}
-                            </a>
-
+                            <a href="{% url 'fai_scelta' s.id %}" class="choice-btn">{{ s.testo_bottone }}</a>
                         {% else %}
-                            <a href="." class="choice-btn" style="border-color: red; background: rgba(255,0,0,0.2);">
-                                [Destinazione Mancante] - {{ s.testo_bottone }}
-                            </a>
+                            <a href="." class="choice-btn" style="border-color: red;">[Destinazione Mancante] {{ s.testo_bottone }}</a>
                         {% endif %}
-
                     {% endfor %}
+
+                    {% for action in action_nodes %}
+                        <a href="{% url 'avvia_action_node' action.id %}" class="choice-btn action-choice-btn">
+                            {{ action.testo_bottone }}
+                        </a>
+                    {% endfor %}
+
                 </div>
             </div>
 
         {% else %}
             <p>...</p>
         {% endif %}
-
     </div>
+    <a href="{% url 'reset_gioco' %}" class="reset-btn">🔄 RESET</a>
 
 </body>
 </html>
