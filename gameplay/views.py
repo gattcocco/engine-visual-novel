@@ -57,6 +57,13 @@ def applica_oggetto_action_node(request, action_node_id, oggetto_id):
 
 def applica_target(request, slug_scena, target_slug):
     scena = get_object_or_404(Scena, slug=slug_scena)
+    verb_mode = request.session.get('verb_mode')
+
+    if not verb_mode:
+        request.session['feedback_message'] = 'Seleziona un comando.'
+        request.session.modified = True
+        return redirect('scena', slug_scena=scena.slug)
+
     selected_item_id = request.session.get('selected_item_id')
     last_action_node_id = request.session.get('last_action_node_id')
 
@@ -158,6 +165,7 @@ def motore_gioco(request, slug_scena='inizio'):
     action_node_attivo = None
     action_node_attivo_id = request.session.get('action_node_attivo_id')
     selected_item_id = request.session.get('selected_item_id')
+    verb_mode = request.session.get('verb_mode')
     if action_node_attivo_id:
         # Verifica che il nodo attivo appartenga davvero a questa scena (per sicurezza)
         action_node_attivo = ActionNode.objects.filter(id=action_node_attivo_id, scena_partenza=scena).first()
@@ -177,9 +185,27 @@ def motore_gioco(request, slug_scena='inizio'):
         'inventario': oggetti_inventario,
         'action_nodes': action_nodes,         # Passiamo i nodi al template
         'action_node_attivo': action_node_attivo, # Passiamo lo stato attivo
+        'verb_mode': verb_mode,
         'selected_item_id': selected_item_id,
-        'feedback_message': feedback_message,
+        'feedback': feedback_message,
     })
+
+
+def set_verb_mode(request, slug_scena, verb):
+    request.session['verb_mode'] = verb
+    if verb != 'usa':
+        request.session['selected_item_id'] = None
+    request.session.modified = True
+    return redirect('scena', slug_scena=slug_scena)
+
+
+def annulla_comando(request, slug_scena):
+    request.session['verb_mode'] = None
+    request.session['selected_item_id'] = None
+    request.session['last_action_node_id'] = None
+    request.session['action_node_attivo_id'] = None
+    request.session.modified = True
+    return redirect('scena', slug_scena=slug_scena)
 # ... (dopo le altre funzioni)
 
 def reset_gioco(request):

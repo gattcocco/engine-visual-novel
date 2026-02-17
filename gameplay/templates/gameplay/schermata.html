@@ -93,9 +93,9 @@
     <div class="background-layer" style="{% if scena.background %}background-image: url('{{ scena.background.url }}');{% endif %}"></div>
 
     <div class="inventory-box {% if action_node_attivo %}item-selection-mode{% endif %}">
-    {% if feedback_message %}
+    {% if feedback %}
         <div style="position:absolute; top: 90px; right: 20px; max-width: 280px; background: rgba(0,0,0,0.75); border: 1px solid #ffe678; color:#ffe678; padding: 8px 10px; border-radius: 8px; z-index: 150;">
-            {{ feedback_message }}
+            {{ feedback }}
         </div>
     {% endif %}
 
@@ -146,8 +146,11 @@
                         <div class="action-mode-banner">Scegli un oggetto</div>
                     {% elif selected_item_id %}
                         <div class="action-mode-banner">Scegli un target</div>
-                        <a href="{% url 'applica_target' scena.slug 'porta' %}" class="choice-btn action-choice-btn">Porta</a>
                     {% endif %}
+
+                    <a href="{% url 'applica_target' scena.slug 'secchio' %}" class="choice-btn action-choice-btn">Secchio</a>
+                    <a href="{% url 'applica_target' scena.slug 'more' %}" class="choice-btn action-choice-btn">More</a>
+                    <a href="{% url 'applica_target' scena.slug 'porta' %}" class="choice-btn action-choice-btn">Porta</a>
 
                     {% for s in scelte %}
                         {% if s.scena_arrivo %}
@@ -162,6 +165,13 @@
                             {{ action.testo_bottone }}
                         </a>
                     {% endfor %}
+
+                    <div class="choice-container" style="margin-top: 18px;">
+                        <a href="{% url 'set_verb_mode' scena.slug 'esamina' %}" class="choice-btn">Esamina</a>
+                        <a href="{% url 'set_verb_mode' scena.slug 'prendi' %}" class="choice-btn">Prendi</a>
+                        <a href="{% url 'set_verb_mode' scena.slug 'usa' %}" class="choice-btn">Usa con...</a>
+                        <a href="{% url 'annulla_comando' scena.slug %}" class="choice-btn">Annulla</a>
+                    </div>
 
                 </div>
             </div>

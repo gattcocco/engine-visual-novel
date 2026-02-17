@@ -4,7 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 # IMPORTANTE: Aggiungi 'reset_gioco' alla fine della lista degli import!
-from gameplay.views import motore_gioco, fai_scelta, avvia_action_node, applica_oggetto_action_node, applica_target, reset_gioco 
+from gameplay.views import motore_gioco, fai_scelta, avvia_action_node, applica_oggetto_action_node, applica_target, set_verb_mode, annulla_comando, reset_gioco 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -16,6 +16,8 @@ urlpatterns = [
     path('azione/<int:scelta_id>/', fai_scelta, name='fai_scelta'),
     path('action-node/<int:action_node_id>/start/', avvia_action_node, name='avvia_action_node'),
     path('action-node/<int:action_node_id>/apply/<int:oggetto_id>/', applica_oggetto_action_node, name='applica_oggetto_action_node'), 
+    path('<slug:slug_scena>/verb/<slug:verb>/', set_verb_mode, name='set_verb_mode'),
+    path('<slug:slug_scena>/annulla/', annulla_comando, name='annulla_comando'),
     path('<slug:slug_scena>/target/<slug:target_slug>/', applica_target, name='applica_target'),
 
     path('', motore_gioco, name='home'),
