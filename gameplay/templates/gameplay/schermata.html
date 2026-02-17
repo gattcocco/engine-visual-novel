@@ -93,6 +93,12 @@
     <div class="background-layer" style="{% if scena.background %}background-image: url('{{ scena.background.url }}');{% endif %}"></div>
 
     <div class="inventory-box {% if action_node_attivo %}item-selection-mode{% endif %}">
+    {% if feedback_message %}
+        <div style="position:absolute; top: 90px; right: 20px; max-width: 280px; background: rgba(0,0,0,0.75); border: 1px solid #ffe678; color:#ffe678; padding: 8px 10px; border-radius: 8px; z-index: 150;">
+            {{ feedback_message }}
+        </div>
+    {% endif %}
+
         {% for obj in inventario %}
             {% if action_node_attivo %}
                 <a class="inv-item-link" href="{% url 'applica_oggetto_action_node' action_node_attivo.id obj.id %}" title="Usa {{ obj.nome }}">
@@ -137,9 +143,10 @@
                 <div class="choice-container">
                     
                     {% if action_node_attivo %}
-                        <div class="action-mode-banner">
-                            Seleziona un oggetto dallo zaino per: {{ action_node_attivo.testo_bottone }}
-                        </div>
+                        <div class="action-mode-banner">Scegli un oggetto</div>
+                    {% elif selected_item_id %}
+                        <div class="action-mode-banner">Scegli un target</div>
+                        <a href="{% url 'applica_target' scena.slug 'porta' %}" class="choice-btn action-choice-btn">Porta</a>
                     {% endif %}
 
                     {% for s in scelte %}

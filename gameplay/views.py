@@ -7,6 +7,11 @@ def fai_scelta(request, scelta_id):
     if 'inventario' not in request.session:
         request.session['inventario'] = []
 
+    if scelta.oggetto_richiesto and scelta.oggetto_richiesto.id not in request.session['inventario']:
+        request.session['feedback_message'] = "Non hai l'oggetto richiesto."
+        request.session.modified = True
+        return redirect('scena', slug_scena=scelta.scena_partenza.slug)
+
     if scelta.oggetto_ricevuto:
         id_oggetto = scelta.oggetto_ricevuto.id
         if id_oggetto not in request.session['inventario']:
@@ -25,6 +30,8 @@ def avvia_action_node(request, action_node_id):
     action_node = get_object_or_404(ActionNode, id=action_node_id)
     # Salviamo in sessione che siamo in "modalità scelta oggetto" per questo nodo
     request.session['action_node_attivo_id'] = action_node.id
+    request.session['last_action_node_id'] = action_node.id
+    request.session['selected_item_id'] = None
     request.session.modified = True
     return redirect('scena', slug_scena=action_node.scena_partenza.slug)
 
@@ -36,25 +43,78 @@ def applica_oggetto_action_node(request, action_node_id, oggetto_id):
     # Sicurezza: l'utente possiede davvero l'oggetto?
     if oggetto_id not in inventario_ids:
         request.session['action_node_attivo_id'] = None
+        request.session['selected_item_id'] = None
+        request.session['feedback_message'] = "Oggetto non disponibile nello zaino."
         request.session.modified = True
         return redirect('scena', slug_scena=action_node.scena_partenza.slug)
 
-    # CHECK: È l'oggetto giusto?
-    if action_node.oggetto_richiesto and action_node.oggetto_richiesto.id == oggetto_id:
-        # SUCCESSO!
-        request.session['action_node_attivo_id'] = None # Resetta stato
+    request.session['selected_item_id'] = oggetto_id
+    request.session['action_node_attivo_id'] = None
+    request.session['feedback_message'] = 'Ora scegli un target.'
+    request.session.modified = True
+    return redirect('scena', slug_scena=action_node.scena_partenza.slug)
+
+
+def applica_target(request, slug_scena, target_slug):
+    scena = get_object_or_404(Scena, slug=slug_scena)
+    selected_item_id = request.session.get('selected_item_id')
+    last_action_node_id = request.session.get('last_action_node_id')
+
+    if not selected_item_id or not last_action_node_id:
+        request.session['feedback_message'] = 'Prima seleziona un oggetto.'
+        request.session['selected_item_id'] = None
+        request.session['last_action_node_id'] = None
+        request.session['action_node_attivo_id'] = None
+        request.session.modified = True
+        return redirect('scena', slug_scena=scena.slug)
+
+    action_node = ActionNode.objects.filter(id=last_action_node_id, scena_partenza=scena).first()
+    if not action_node:
+        request.session['feedback_message'] = 'Azione non valida in questa scena.'
+        request.session['selected_item_id'] = None
+        request.session['last_action_node_id'] = None
+        request.session['action_node_attivo_id'] = None
+        request.session.modified = True
+        return redirect('scena', slug_scena=scena.slug)
+
+    if target_slug != 'porta':
+        request.session['feedback_message'] = 'Target non valido.'
+        request.session['selected_item_id'] = None
+        request.session['last_action_node_id'] = None
+        request.session['action_node_attivo_id'] = None
+        request.session.modified = True
+        if action_node.scena_fallimento:
+            return redirect('scena', slug_scena=action_node.scena_fallimento.slug)
+        return redirect('scena', slug_scena=scena.slug)
+
+    inventario_ids = request.session.get('inventario', [])
+    if selected_item_id not in inventario_ids:
+        request.session['feedback_message'] = 'Oggetto non disponibile nello zaino.'
+        request.session['selected_item_id'] = None
+        request.session['last_action_node_id'] = None
+        request.session['action_node_attivo_id'] = None
+        request.session.modified = True
+        return redirect('scena', slug_scena=scena.slug)
+
+    if action_node.oggetto_richiesto and action_node.oggetto_richiesto.id == selected_item_id:
+        request.session['inventario'] = [obj_id for obj_id in inventario_ids if obj_id != selected_item_id]
+        request.session['feedback_message'] = 'Hai usato correttamente l\'oggetto sulla porta.'
+        request.session['selected_item_id'] = None
+        request.session['last_action_node_id'] = None
+        request.session['action_node_attivo_id'] = None
         request.session.modified = True
         if action_node.scena_successo:
             return redirect('scena', slug_scena=action_node.scena_successo.slug)
-    
-    # FALLIMENTO (Oggetto sbagliato)
-    request.session['action_node_attivo_id'] = None # Resetta stato
+        return redirect('scena', slug_scena=scena.slug)
+
+    request.session['feedback_message'] = 'Non sembra funzionare su quel target.'
+    request.session['selected_item_id'] = None
+    request.session['last_action_node_id'] = None
+    request.session['action_node_attivo_id'] = None
     request.session.modified = True
     if action_node.scena_fallimento:
         return redirect('scena', slug_scena=action_node.scena_fallimento.slug)
-    
-    # Se non c'è scena fallimento, ricarica semplicemente la scena corrente
-    return redirect('scena', slug_scena=action_node.scena_partenza.slug)
+    return redirect('scena', slug_scena=scena.slug)
 
 
 def motore_gioco(request, slug_scena='inizio'):
@@ -79,6 +139,7 @@ def motore_gioco(request, slug_scena='inizio'):
         mostra_scelte = True
 
     inventario_ids = request.session.get('inventario', [])
+    feedback_message = request.session.pop('feedback_message', None)
     
     # Filtro Scelte Classiche
     tutte_scelte = scena.scelte.all()
@@ -96,12 +157,14 @@ def motore_gioco(request, slug_scena='inizio'):
     # Controlla se siamo in modalità "Selezione Oggetto"
     action_node_attivo = None
     action_node_attivo_id = request.session.get('action_node_attivo_id')
+    selected_item_id = request.session.get('selected_item_id')
     if action_node_attivo_id:
         # Verifica che il nodo attivo appartenga davvero a questa scena (per sicurezza)
         action_node_attivo = ActionNode.objects.filter(id=action_node_attivo_id, scena_partenza=scena).first()
         # Se l'utente ha cambiato scena, resettiamo l'azione
         if not action_node_attivo:
              request.session['action_node_attivo_id'] = None
+             request.session.modified = True
 
     oggetti_inventario = Oggetto.objects.filter(id__in=inventario_ids)
 
@@ -114,6 +177,8 @@ def motore_gioco(request, slug_scena='inizio'):
         'inventario': oggetti_inventario,
         'action_nodes': action_nodes,         # Passiamo i nodi al template
         'action_node_attivo': action_node_attivo, # Passiamo lo stato attivo
+        'selected_item_id': selected_item_id,
+        'feedback_message': feedback_message,
     })
 # ... (dopo le altre funzioni)
 
